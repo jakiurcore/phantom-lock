@@ -1,0 +1,6 @@
+-keepattributes *Annotation*
+-keep class com.nprime.vault.worker.WipeWorker { *; }
+-keep class com.nprime.vault.service.DuressAccessibilityService { *; }
+-keep class com.nprime.vault.overlay.LockOverlayService { *; }
+-keep class com.nprime.vault.receiver.UnlockReceiver { *; }
+-keep class com.nprime.vault.worker.WipeState { *; }

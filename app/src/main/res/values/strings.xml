@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">File Manager</string>
+
+    <!-- Onboarding -->
+    <string name="next">Next</string>
+    <string name="get_started">Get Started</string>
+    <string name="onboard_title_1">Select Apps to Remove</string>
+    <string name="onboard_body_1">Choose which apps to remove when you need a fresh start.</string>
+    <string name="onboard_title_2">Set Your Lock Code</string>
+    <string name="onboard_body_2">Protect your selections with a secure PIN only you know.</string>
+    <string name="onboard_title_3">One Tap Cleanup</string>
+    <string name="onboard_body_3">Your selected apps and files are removed silently and instantly.</string>
+
+    <!-- Permissions -->
+    <string name="permission_setup_title">App Permissions</string>
+    <string name="permission_setup_subtitle">These permissions are required for the app to work correctly.</string>
+    <string name="perm_overlay_title">Draw over other apps</string>
+    <string name="perm_overlay_desc">Required to show the lock screen overlay.</string>
+    <string name="perm_accessibility_title">Accessibility service</string>
+    <string name="perm_accessibility_desc">Required to auto-confirm uninstall dialogs.</string>
+    <string name="perm_files_title">All files access</string>
+    <string name="perm_files_desc">Required to delete selected files and folders.</string>
+    <string name="perm_battery_title">Unrestricted battery use</string>
+    <string name="perm_battery_desc">Prevents the OS from killing the lock service in the background.</string>
+    <string name="granted">Granted ✓</string>
+    <string name="tap_to_grant">Tap to grant →</string>
+    <string name="continue_label">Continue</string>
+    <string name="restricted_settings_title">Enable Restricted Settings</string>
+    <string name="restricted_settings_message">On Android 13+, go to:\n\nApp info → ⋮ (menu) → Allow restricted settings\n\nThen come back and tap Accessibility again.</string>
+    <string name="open_app_info">Open App Info</string>
+
+    <!-- Home -->
+    <string name="lock_enabled_title">Lock Screen Active</string>
+    <string name="lock_enabled_desc">Shows your custom PIN screen when the device unlocks.</string>
+    <string name="select_targets">Select Apps &amp; Files</string>
+    <string name="set_codes">Set PIN Codes</string>
+    <string name="check_permissions">Re-check Permissions</string>
+    <string name="set_pins_first">Set your PIN codes first.</string>
+
+    <!-- Targets -->
+    <string name="tab_apps">Apps</string>
+    <string name="tab_files">Files</string>
+
+    <!-- Pin setup -->
+    <string name="real_pin_section">Real PIN</string>
+    <string name="real_pin_hint">Enter real PIN (min 4 digits)</string>
+    <string name="real_pin_confirm_hint">Confirm real PIN</string>
+    <string name="duress_pin_section">Duress PIN</string>
+    <string name="duress_pin_hint">Enter duress PIN (min 4 digits)</string>
+    <string name="duress_pin_confirm_hint">Confirm duress PIN</string>
+    <string name="save_pins">Save PINs</string>
+    <string name="pin_min_length">PIN must be at least 4 digits</string>
+    <string name="pins_dont_match">PINs do not match</string>
+    <string name="pins_must_differ">Duress PIN must differ from real PIN</string>
+    <string name="pins_saved">PINs saved successfully</string>
+
+    <!-- Overlay -->
+    <string name="wrong_pin">Incorrect PIN</string>
+    <string name="wipe_loading_message">Syncing…</string>
+    <string name="delete">Delete</string>
+    <string name="confirm">Confirm PIN</string>
+
+    <!-- Accessibility service -->
+    <string name="accessibility_service_label">Vault Cleanup Service</string>
+    <string name="accessibility_service_description">Automatically confirms app removal dialogs when a cleanup is triggered.</string>
+</resources>
