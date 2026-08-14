@@ -169,21 +169,12 @@ class LockOverlayService : Service() {
         pinBuffer.clear()
     }
 
-    /**
-     * Swaps the pin pad content for a loading spinner inside the same window.
-     * No window is added or removed so there is no z-order gap for the
-     * system uninstaller to appear through.
-     *
-     * FLAG_NOT_FOCUSABLE is added so the uninstall dialog behind the overlay
-     * becomes rootInActiveWindow for the accessibility service, letting it
-     * find and click the confirm button in every visible window.
-     */
     private fun showWipeLoadingInOverlay() {
         prebuiltView.findViewById<View>(R.id.wipe_loading_overlay)?.visibility = View.VISIBLE
-        val wipeParams = buildOverlayParams().apply {
-            flags = flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-        }
-        runCatching { if (overlayView != null) wm.updateViewLayout(prebuiltView, wipeParams) }
+        // Do NOT call updateViewLayout here. Changing window params (even just flags)
+        // forces the surface to briefly rebuild, causing a 1-2 frame gap where the
+        // PackageInstaller dialog shows through. The accessibility service finds and
+        // clicks the dialog via the all-windows search without any flag change needed.
     }
 
     private fun dismissOverlay(afterDismiss: (() -> Unit)? = null) {
