@@ -17,6 +17,7 @@ data class HomeUiState(
     val hasOverlayPermission: Boolean = false,
     val systemLockSecure: Boolean = false,
     val maxAttempts: Int = VaultPrefs.DEFAULT_MAX_ATTEMPTS,
+    val autoLockDelayMs: Long = VaultPrefs.DEFAULT_AUTO_LOCK_DELAY_MS,
     val selectedApps: Int = 0,
     val selectedFiles: Int = 0
 )
@@ -35,6 +36,7 @@ class HomeViewModel : ViewModel() {
                 hasOverlayPermission = Settings.canDrawOverlays(context),
                 systemLockSecure   = DeviceOwnerManager.isSystemLockScreenSecure(context),
                 maxAttempts        = VaultPrefs.getMaxAttempts(context),
+                autoLockDelayMs    = VaultPrefs.getAutoLockDelay(context),
                 selectedApps       = VaultPrefs.getSelectedApps(context).size,
                 selectedFiles      = VaultPrefs.getSelectedFiles(context).size
             )
@@ -49,5 +51,10 @@ class HomeViewModel : ViewModel() {
     fun setMaxAttempts(context: Context, n: Int) {
         VaultPrefs.saveMaxAttempts(context, n)
         _uiState.update { it.copy(maxAttempts = n.coerceIn(VaultPrefs.MIN_ATTEMPTS, VaultPrefs.MAX_ATTEMPTS_LIMIT)) }
+    }
+
+    fun setAutoLockDelay(context: Context, ms: Long) {
+        DeviceOwnerManager.setMaximumTimeLock(context, ms)
+        _uiState.update { it.copy(autoLockDelayMs = ms) }
     }
 }

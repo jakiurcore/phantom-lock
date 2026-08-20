@@ -60,12 +60,17 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
     private var windowManager: WindowManager? = null
     private var overlayView: ComposeView? = null
     private var shouldLock = false
+    private var relockJob: kotlinx.coroutines.Job? = null
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                Intent.ACTION_SCREEN_OFF -> shouldLock = true
-                Intent.ACTION_SCREEN_ON  -> if (shouldLock) showOverlay()
+                Intent.ACTION_SCREEN_OFF -> {
+                    shouldLock = true
+                    relockJob?.cancel()
+                    relockJob = null
+                }
+                Intent.ACTION_SCREEN_ON -> if (shouldLock) showOverlay()
             }
         }
     }
@@ -115,6 +120,8 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
 
     // ── Overlay ───────────────────────────────────────────────────────────────
     private fun showOverlay() {
+        relockJob?.cancel()
+        relockJob = null
         if (overlayView != null) return
         if (!Settings.canDrawOverlays(this)) return
 
@@ -170,6 +177,16 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
         DeviceOwnerManager.setStatusBarLocked(this, false)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+        scheduleRelock()
+    }
+
+    private fun scheduleRelock() {
+        relockJob?.cancel()
+        val delayMs = VaultPrefs.getAutoLockDelay(this)
+        relockJob = scope.launch {
+            delay(delayMs)
+            showOverlay()
+        }
     }
 
     // ── Password evaluation ───────────────────────────────────────────────────

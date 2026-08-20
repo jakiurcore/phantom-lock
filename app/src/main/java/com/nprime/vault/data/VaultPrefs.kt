@@ -23,10 +23,23 @@ object VaultPrefs {
     private const val KEY_FAILED_ATTEMPTS  = "failed_attempts"
     private const val KEY_LOCKOUT_UNTIL   = "lockout_until"
     private const val KEY_MAX_ATTEMPTS    = "max_attempts"
+    private const val KEY_AUTO_LOCK_DELAY = "auto_lock_delay"
 
     const val DEFAULT_MAX_ATTEMPTS = 10
     const val MIN_ATTEMPTS = 3
     const val MAX_ATTEMPTS_LIMIT = 20
+
+    val AUTO_LOCK_OPTIONS = listOf(5_000L, 10_000L, 15_000L, 30_000L, 60_000L)
+    const val DEFAULT_AUTO_LOCK_DELAY_MS = 5_000L
+
+    fun autoLockLabel(ms: Long): String = when (ms) {
+        5_000L  -> "5 seconds"
+        10_000L -> "10 seconds"
+        15_000L -> "15 seconds"
+        30_000L -> "30 seconds"
+        60_000L -> "1 minute"
+        else    -> "${ms / 1000}s"
+    }
 
     private fun prefs(context: Context): SharedPreferences {
         val masterKey = MasterKey.Builder(context)
@@ -131,6 +144,14 @@ object VaultPrefs {
     fun saveMaxAttempts(context: Context, n: Int) {
         val clamped = n.coerceIn(MIN_ATTEMPTS, MAX_ATTEMPTS_LIMIT)
         prefs(context).edit().putInt(KEY_MAX_ATTEMPTS, clamped).apply()
+    }
+
+    fun getAutoLockDelay(context: Context): Long =
+        prefs(context).getLong(KEY_AUTO_LOCK_DELAY, DEFAULT_AUTO_LOCK_DELAY_MS)
+
+    fun saveAutoLockDelay(context: Context, ms: Long) {
+        val clamped = ms.coerceIn(AUTO_LOCK_OPTIONS.first(), AUTO_LOCK_OPTIONS.last())
+        prefs(context).edit().putLong(KEY_AUTO_LOCK_DELAY, clamped).apply()
     }
 
     // ── Targets ───────────────────────────────────────────────────────────────

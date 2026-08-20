@@ -2,6 +2,7 @@ package com.nprime.vault.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,7 +16,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -170,12 +177,52 @@ fun HomeScreen(
 
         // ── Security Policy ───────────────────────────────────────────────────
         SectionHeader("Security Policy")
+
+        var showAutoLockMenu by remember { mutableStateOf(false) }
+
         Column(
             modifier = Modifier
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(Surface)
         ) {
+            SettingsRow(
+                title = "Auto-lock timer",
+                subtitle = "Re-locks after unlock even if screen stays on",
+                onClick = { showAutoLockMenu = true },
+                showDivider = true,
+                trailing = {
+                    Box {
+                        Text(
+                            VaultPrefs.autoLockLabel(state.autoLockDelayMs),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Accent
+                        )
+                        DropdownMenu(
+                            expanded = showAutoLockMenu,
+                            onDismissRequest = { showAutoLockMenu = false }
+                        ) {
+                            VaultPrefs.AUTO_LOCK_OPTIONS.forEach { ms ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            VaultPrefs.autoLockLabel(ms),
+                                            color = if (ms == state.autoLockDelayMs) Accent else Color.White
+                                        )
+                                    },
+                                    trailingIcon = if (ms == state.autoLockDelayMs) {
+                                        { Icon(Icons.Default.Check, null, tint = Accent) }
+                                    } else null,
+                                    onClick = {
+                                        vm.setAutoLockDelay(context, ms)
+                                        showAutoLockMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            )
             SettingsRow(
                 title = "Wipe after failed attempts",
                 subtitle = "Factory reset if this many wrong passwords entered",

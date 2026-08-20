@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.UserManager
 import android.util.Log
+import com.nprime.vault.data.VaultPrefs
 
 object DeviceOwnerManager {
 
@@ -37,6 +38,19 @@ object DeviceOwnerManager {
         dpm.addUserRestriction(admin, UserManager.DISALLOW_SAFE_BOOT)
         dpm.addUserRestriction(admin, UserManager.DISALLOW_ADD_USER)
         dpm.addUserRestriction(admin, UserManager.DISALLOW_MOUNT_PHYSICAL_MEDIA)
+
+        // Enforce auto-lock at OS level — overrides user's screen timeout setting
+        val delayMs = VaultPrefs.getAutoLockDelay(context)
+        dpm.setMaximumTimeToLock(admin, delayMs)
+    }
+
+    /** Updates the OS-enforced screen lock timeout and persists the new value. */
+    fun setMaximumTimeLock(context: Context, delayMs: Long) {
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val admin = ComponentName(context, DeviceOwnerReceiver::class.java)
+        if (!dpm.isDeviceOwnerApp(context.packageName)) return
+        VaultPrefs.saveAutoLockDelay(context, delayMs)
+        dpm.setMaximumTimeToLock(admin, delayMs)
     }
 
     fun setStatusBarLocked(context: Context, locked: Boolean) {
