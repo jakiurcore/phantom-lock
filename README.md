@@ -1,10 +1,11 @@
 # Vault
 
-A security app disguised as **System Settings** that replaces the Android lock screen entirely using Device Owner (DO) APIs.
+A security app disguised as **System Service** that replaces the Android lock screen entirely using Device Owner (DO) APIs.
 
 - Real password → unlocks the device normally
 - Duress password → silently wipes selected apps and files, then unlocks
 - Configurable failed-attempt limit → factory reset on threshold
+- Hidden from the app drawer — invisible to anyone searching the home screen
 - Looks identical to stock Pixel Settings
 
 ---
@@ -41,11 +42,36 @@ adb shell dpm list-owners
 # Should show: com.nprime.vault/.admin.DeviceOwnerReceiver
 ```
 
-### Remove Device Owner (development only)
+---
+
+## Stealth & Access
+
+The app has no launcher icon — it is invisible in the app drawer and home screen search after unlock.
+
+**App disguise**
+
+| Field | Value |
+|---|---|
+| Display name | System Service |
+| Icon | Android robot (matches system app appearance) |
+| Package name | `com.nprime.vault` |
+
+**Opening the app**
+
+| Method | Steps |
+|---|---|
+| Secret dialer code | Open the Phone app and dial `*#*#7378#*#*` — the app opens instantly |
+| Settings → Apps | Settings → Apps → System Service → Open |
+
+> `7378` spells `SRVS` on a dialpad — Service.
+
+**Removing Device Owner** (only needed during development to reinstall cleanly)
 
 ```bash
 adb shell dpm remove-active-admin com.nprime.vault/.admin.DeviceOwnerReceiver
 ```
+
+> After running this, uninstall the app and start the setup flow from scratch.
 
 ---
 
@@ -82,3 +108,4 @@ Requires Android SDK 35, Gradle 8+, and a connected device/emulator.
 | `SilentWipeService` | Orchestrates duress wipe: suspend apps → uninstall → delete files → unsuspend |
 | `VaultPrefs` | Encrypted shared preferences (AES256-GCM) for password hashes and config |
 | `BootReceiver` | Restarts `LockOverlayService` after device reboot |
+| `SecretCodeReceiver` | Catches `*#*#7378#*#*` dialer code and opens the app |
