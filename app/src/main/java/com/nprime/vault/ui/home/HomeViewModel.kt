@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 data class HomeUiState(
     val isDeviceOwner: Boolean = false,
     val isLockEnabled: Boolean = false,
+    val isAdbBlocked: Boolean = false,
     val selectedApps: Int = 0,
     val selectedFiles: Int = 0,
     val showDeactivateDialog: Boolean = false
@@ -27,6 +28,7 @@ class HomeViewModel : ViewModel() {
             it.copy(
                 isDeviceOwner = DeviceOwnerManager.isDeviceOwner(context),
                 isLockEnabled = VaultPrefs.isLockEnabled(context),
+                isAdbBlocked = DeviceOwnerManager.isAdbBlocked(context),
                 selectedApps = VaultPrefs.getSelectedApps(context).size,
                 selectedFiles = VaultPrefs.getSelectedFiles(context).size
             )
@@ -41,6 +43,11 @@ class HomeViewModel : ViewModel() {
         } else {
             LockOverlayService.instance?.stopSelf()
         }
+    }
+
+    fun setAdbBlocked(context: Context, blocked: Boolean) {
+        DeviceOwnerManager.setAdbBlocked(context, blocked)
+        _uiState.update { it.copy(isAdbBlocked = blocked) }
     }
 
     fun showDeactivateDialog(show: Boolean) {

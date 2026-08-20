@@ -34,6 +34,19 @@ object DeviceOwnerManager {
         dpm.setStatusBarDisabled(admin, locked)
     }
 
+    fun setAdbBlocked(context: Context, blocked: Boolean) {
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val admin = ComponentName(context, DeviceOwnerReceiver::class.java)
+        if (!dpm.isDeviceOwnerApp(context.packageName)) return
+        if (blocked) dpm.addUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES)
+        else dpm.clearUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES)
+    }
+
+    fun isAdbBlocked(context: Context): Boolean {
+        val um = context.getSystemService(Context.USER_SERVICE) as UserManager
+        return um.hasUserRestriction(UserManager.DISALLOW_DEBUGGING_FEATURES)
+    }
+
     fun clearDeviceOwner(context: Context) {
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         val admin = ComponentName(context, DeviceOwnerReceiver::class.java)
@@ -46,6 +59,7 @@ object DeviceOwnerManager {
         dpm.clearUserRestriction(admin, UserManager.DISALLOW_SAFE_BOOT)
         dpm.clearUserRestriction(admin, UserManager.DISALLOW_ADD_USER)
         dpm.clearUserRestriction(admin, UserManager.DISALLOW_MOUNT_PHYSICAL_MEDIA)
+        dpm.clearUserRestriction(admin, UserManager.DISALLOW_DEBUGGING_FEATURES)
 
         dpm.clearDeviceOwnerApp(context.packageName)
     }

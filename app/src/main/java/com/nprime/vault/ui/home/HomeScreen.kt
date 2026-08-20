@@ -84,6 +84,34 @@ fun HomeScreen(
             )
         }
 
+        // ADB block toggle — warning: disables ADB on device
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF1A1A1A), MaterialTheme.shapes.medium)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Block ADB / Debug", color = Color.White, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Warning: disables adb on this device",
+                    color = Color(0xFF888888),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Switch(
+                checked = state.isAdbBlocked,
+                onCheckedChange = { vm.setAdbBlocked(context, it) },
+                enabled = state.isDeviceOwner,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.Black,
+                    checkedTrackColor = ErrorRed
+                )
+            )
+        }
+
         // Targets card
         Column(
             modifier = Modifier
