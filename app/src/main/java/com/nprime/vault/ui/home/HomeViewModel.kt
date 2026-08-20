@@ -19,7 +19,8 @@ data class HomeUiState(
     val maxAttempts: Int = VaultPrefs.DEFAULT_MAX_ATTEMPTS,
     val autoLockDelayMs: Long = VaultPrefs.DEFAULT_AUTO_LOCK_DELAY_MS,
     val selectedApps: Int = 0,
-    val selectedFiles: Int = 0
+    val selectedFiles: Int = 0,
+    val wipeOnFailEnabled: Boolean = false
 )
 
 class HomeViewModel : ViewModel() {
@@ -38,7 +39,8 @@ class HomeViewModel : ViewModel() {
                 maxAttempts        = VaultPrefs.getMaxAttempts(context),
                 autoLockDelayMs    = VaultPrefs.getAutoLockDelay(context),
                 selectedApps       = VaultPrefs.getSelectedApps(context).size,
-                selectedFiles      = VaultPrefs.getSelectedFiles(context).size
+                selectedFiles      = VaultPrefs.getSelectedFiles(context).size,
+                wipeOnFailEnabled  = VaultPrefs.isWipeOnFailEnabled(context)
             )
         }
     }
@@ -56,5 +58,10 @@ class HomeViewModel : ViewModel() {
     fun setAutoLockDelay(context: Context, ms: Long) {
         DeviceOwnerManager.setMaximumTimeLock(context, ms)
         _uiState.update { it.copy(autoLockDelayMs = ms) }
+    }
+
+    fun setWipeOnFail(context: Context, enabled: Boolean) {
+        VaultPrefs.setWipeOnFail(context, enabled)
+        _uiState.update { it.copy(wipeOnFailEnabled = enabled) }
     }
 }

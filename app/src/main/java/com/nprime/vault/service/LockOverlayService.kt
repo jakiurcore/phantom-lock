@@ -72,6 +72,7 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
 
     private val wipeCompleteReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            // File deletion done — lift invisible blocker
             if (intent.action == SilentWipeService.ACTION_WIPE_COMPLETE) hideOverlay()
         }
     }
@@ -123,23 +124,7 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_SECURE or
-            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
-            PixelFormat.OPAQUE
-        ).apply {
-            @Suppress("DEPRECATION")
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-        }
+        val params = lockScreenParams()
 
         val view = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@LockOverlayService)
@@ -192,8 +177,7 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
             else -> {
                 val attempts = VaultPrefs.recordFailedAttempt(ctx)
                 val maxAttempts = VaultPrefs.getMaxAttempts(ctx)
-                if (attempts >= maxAttempts) {
-                    // Exceeded limit — full factory reset, no warning
+                if (attempts >= maxAttempts && VaultPrefs.isWipeOnFailEnabled(ctx)) {
                     DeviceOwnerManager.wipeDevice(this)
                 } else {
                     triggerError(VaultPrefs.getLockoutUntil(ctx))
@@ -252,7 +236,50 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
         }
     }
 
-    fun updateWipeMessage(message: String) {
-        _uiState.update { it.copy(wipeMessage = message) }
+    // Called by SilentWipeService as each app is uninstalled
+    fun updateWipeProgress(done: Int, total: Int) {
+        val progress = if (total == 0) 1f else done.toFloat() / total
+        _uiState.update { it.copy(wipeProgress = progress) }
     }
+
+    // Called by SilentWipeService when all apps are done — switches to invisible blocker
+    fun onAppsDone() {
+        scope.launch(Dispatchers.Main) { switchToBlockerMode() }
+    }
+
+    private fun switchToBlockerMode() {
+        val view = overlayView ?: return
+        windowManager?.updateViewLayout(view, blockerParams())
+        _uiState.update { it.copy(isWiping = false, isBlockingInput = true) }
+        DeviceOwnerManager.setStatusBarLocked(this, false)
+    }
+
+    // ── WindowManager LayoutParams factories ──────────────────────────────────
+
+    @Suppress("DEPRECATION")
+    private fun lockScreenParams() = WindowManager.LayoutParams(
+        WindowManager.LayoutParams.MATCH_PARENT,
+        WindowManager.LayoutParams.MATCH_PARENT,
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+        WindowManager.LayoutParams.FLAG_SECURE or
+        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+        WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
+        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+        PixelFormat.OPAQUE
+    ).apply {
+        softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+    }
+
+    private fun blockerParams() = WindowManager.LayoutParams(
+        WindowManager.LayoutParams.MATCH_PARENT,
+        WindowManager.LayoutParams.MATCH_PARENT,
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+        WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+        PixelFormat.TRANSLUCENT
+    )
 }

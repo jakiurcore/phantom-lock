@@ -223,9 +223,17 @@ fun HomeScreen(
                     }
                 }
             )
+            ToggleRow(
+                title = "Wipe on failed attempts",
+                subtitle = "Enable before leaving — thief triggers factory reset",
+                checked = state.wipeOnFailEnabled,
+                danger = true,
+                showDivider = true,
+                onCheckedChange = { vm.setWipeOnFail(context, it) }
+            )
             SettingsRow(
-                title = "Wipe after failed attempts",
-                subtitle = "Factory reset if this many wrong passwords entered",
+                title = "Failed attempts limit",
+                subtitle = "Number of wrong passwords before action triggers",
                 showDivider = false,
                 trailing = {
                     Row(
@@ -273,10 +281,12 @@ fun HomeScreen(
             )
         }
         Text(
-            "Range: ${VaultPrefs.MIN_ATTEMPTS}–${VaultPrefs.MAX_ATTEMPTS_LIMIT}. " +
-            "On the ${state.maxAttempts}th wrong attempt the device factory resets.",
+            if (state.wipeOnFailEnabled)
+                "Wipe ON — device factory resets after ${state.maxAttempts} wrong attempts."
+            else
+                "Wipe OFF — device locks out after ${state.maxAttempts} wrong attempts. Enable the toggle when leaving.",
             style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary,
+            color = if (state.wipeOnFailEnabled) Danger else TextSecondary,
             modifier = Modifier.padding(horizontal = 28.dp, vertical = 6.dp)
         )
 

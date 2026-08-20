@@ -23,7 +23,8 @@ object VaultPrefs {
     private const val KEY_FAILED_ATTEMPTS  = "failed_attempts"
     private const val KEY_LOCKOUT_UNTIL   = "lockout_until"
     private const val KEY_MAX_ATTEMPTS    = "max_attempts"
-    private const val KEY_AUTO_LOCK_DELAY = "auto_lock_delay"
+    private const val KEY_AUTO_LOCK_DELAY    = "auto_lock_delay"
+    private const val KEY_WIPE_ON_FAIL       = "wipe_on_fail"
 
     const val DEFAULT_MAX_ATTEMPTS = 10
     const val MIN_ATTEMPTS = 3
@@ -176,6 +177,15 @@ object VaultPrefs {
         val json = prefs(context).getString(KEY_SELECTED_FILES, null) ?: return emptySet()
         val arr = JSONArray(json)
         return (0 until arr.length()).map { arr.getString(it) }.toSet()
+    }
+
+    // ── Wipe-on-fail toggle ───────────────────────────────────────────────────
+
+    fun isWipeOnFailEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_WIPE_ON_FAIL, false)
+
+    fun setWipeOnFail(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_WIPE_ON_FAIL, enabled).apply()
     }
 
     // ── State flags ───────────────────────────────────────────────────────────
