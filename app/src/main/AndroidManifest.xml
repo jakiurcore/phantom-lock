@@ -41,9 +41,11 @@
         <activity
             android:name=".MainActivity"
             android:exported="true">
+            <!-- No LAUNCHER category — hidden from app drawer and home screen search.
+                 Launch via: Settings > Apps > System Service > Open,
+                 or dial *#*#7378#*#* in the phone app. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
@@ -63,6 +65,16 @@
             android:name=".service.SilentWipeService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Secret dialer code: dial *#*#7378#*#* to open the app -->
+        <receiver
+            android:name=".receiver.SecretCodeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SECRET_CODE" />
+                <data android:scheme="android_secret_code" android:host="7378" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name=".receiver.BootReceiver"
