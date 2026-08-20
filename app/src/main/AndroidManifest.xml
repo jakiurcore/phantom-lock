@@ -41,13 +41,24 @@
         <activity
             android:name=".MainActivity"
             android:exported="true">
-            <!-- No LAUNCHER category — hidden from app drawer and home screen search.
-                 Launch via: Settings > Apps > System Service > Open,
-                 or dial *#*#7378#*#* in the phone app. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
         </activity>
+
+        <!-- Launcher alias — visible in app drawer only until setup is complete.
+             Disabled programmatically by MainActivity once setup finishes.
+             After that: launch via *#*#7378#*#* or Settings > Apps > System Service > Open. -->
+        <activity-alias
+            android:name=".MainActivityAlias"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Foreground service: draws lock screen over WindowManager -->
         <service

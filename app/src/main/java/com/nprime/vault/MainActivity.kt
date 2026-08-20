@@ -1,8 +1,11 @@
 package com.nprime.vault
 
+import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import com.nprime.vault.data.VaultPrefs
 import com.nprime.vault.service.LockOverlayService
 import com.nprime.vault.ui.navigation.AppNavigation
 import com.nprime.vault.ui.theme.VaultTheme
@@ -19,16 +22,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        from(this)
+        if (VaultPrefs.isSetupComplete(this)) {
+            LockOverlayService.start(this)
+            hideLauncherIcon()
+        }
     }
 
-    companion object {
-        fun from(activity: ComponentActivity) {
-            val ctx = activity.applicationContext
-            val prefs = com.nprime.vault.data.VaultPrefs
-            if (prefs.isSetupComplete(ctx)) {
-                LockOverlayService.start(ctx)
-            }
-        }
+    /** Removes the app icon from the launcher once setup is complete. */
+    private fun hideLauncherIcon() {
+        val alias = ComponentName(this, "${packageName}.MainActivityAlias")
+        if (packageManager.getComponentEnabledSetting(alias) ==
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED) return
+        packageManager.setComponentEnabledSetting(
+            alias,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.DONT_KILL_APP
+        )
     }
 }
