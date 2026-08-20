@@ -78,8 +78,10 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner {
         registerReceiver(screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_SCREEN_ON)
-        })
-        registerReceiver(wipeCompleteReceiver, IntentFilter(SilentWipeService.ACTION_WIPE_COMPLETE))
+        }, Context.RECEIVER_NOT_EXPORTED)
+        registerReceiver(wipeCompleteReceiver,
+            IntentFilter(SilentWipeService.ACTION_WIPE_COMPLETE),
+            Context.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

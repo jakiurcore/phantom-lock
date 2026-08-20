@@ -38,7 +38,8 @@ class SilentWipeService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
-        registerReceiver(uninstallReceiver, IntentFilter(ACTION_UNINSTALL_STATUS))
+        registerReceiver(uninstallReceiver, IntentFilter(ACTION_UNINSTALL_STATUS),
+            Context.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
