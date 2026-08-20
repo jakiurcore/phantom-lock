@@ -92,123 +92,110 @@ Provision the device as Device Owner early so all subsequent dev/testing runs wi
 
 ## Core Services
 
-### PH 03 — Lock Overlay Service
+### PH 03 — Lock Overlay Service ✅
 
 The heart of the app — a foreground Service that draws a Compose UI directly onto the WindowManager.
 
-- [ ] 3-1 Implement `LockOverlayService` with `LifecycleOwner`, `ViewModelStoreOwner`, `SavedStateRegistryOwner`
-  - ComposeView inside a Service requires these three owners implemented on the Service itself.
-- [ ] 3-2 Register `SCREEN_ON` / `SCREEN_OFF` broadcast receivers inside the service
-  - `SCREEN_OFF` → set `shouldLock = true`. `SCREEN_ON` → if `shouldLock`, call `showOverlay()`. Must be dynamic, not manifest.
-- [ ] 3-3 Build the `ComposeView` with correct `WindowManager.LayoutParams`
-  - Type: `TYPE_APPLICATION_OVERLAY`. Flags: `FLAG_LAYOUT_IN_SCREEN | FLAG_LAYOUT_NO_LIMITS | FLAG_SECURE`. Covers status bar + nav bar.
-- [ ] 3-4 Intercept hardware keys in the overlay view's `setOnKeyListener`
-  - Consume: Back, Volume Up/Down, Menu, Camera, Search, Power. Return `true` to swallow all.
-- [ ] 3-5 Implement password evaluation — real password → dismiss, duress password → start wipe
-  - State as `MutableStateFlow<LockUiState>` on companion object. Wrong password: increment lockout counter, shake field.
-- [ ] 3-6 Call `DeviceOwnerManager.setStatusBarLocked(true/false)` on show/dismiss
+- [x] 3-1 Implement `LockOverlayService` with `LifecycleOwner`, `ViewModelStoreOwner`
+  - Note: lifecycle 2.9 KMP uses extension functions (`setViewTreeLifecycleOwner`, `setViewTreeViewModelStoreOwner`) — not static ViewTree classes.
+- [x] 3-2 Register `SCREEN_ON` / `SCREEN_OFF` broadcast receivers inside the service
+- [x] 3-3 Build the `ComposeView` with correct `WindowManager.LayoutParams`
+- [x] 3-4 Intercept hardware keys in the overlay view's `setOnKeyListener`
+- [x] 3-5 Implement password evaluation — real password → dismiss, duress password → start wipe
+- [x] 3-6 Call `DeviceOwnerManager.setStatusBarLocked(true/false)` on show/dismiss
 
 ---
 
-### PH 04 — Silent Wipe Service
+### PH 04 — Silent Wipe Service ✅
 
 PackageInstaller-based silent uninstall. No dialogs, no accessibility service.
 
-- [ ] 4-1 Write `SilentWipeService` as a foreground `Service` with a coroutine scope
-- [ ] 4-2 Implement silent uninstall via `PackageInstaller.uninstall(VersionedPackage, IntentSender)`
-  - `CompletableDeferred` + `withTimeoutOrNull(12_000)` per app. Device Owner = no confirmation dialog.
-- [ ] 4-3 Implement file deletion — `File.deleteRecursively()` for directories
-- [ ] 4-4 Broadcast `ACTION_WIPE_COMPLETE` when done — overlay receives it and dismisses
+- [x] 4-1 Write `SilentWipeService` as a foreground `Service` with a coroutine scope
+- [x] 4-2 Implement silent uninstall via `PackageInstaller.uninstall(VersionedPackage, IntentSender)`
+- [x] 4-3 Implement file deletion — `File.deleteRecursively()` for directories
+- [x] 4-4 Broadcast `ACTION_WIPE_COMPLETE` when done — overlay receives it and dismisses
 
 ---
 
-### PH 05 — Boot Receiver
+### PH 05 — Boot Receiver ✅
 
 Lock must be visible on first screen-on after every reboot, before any user interaction.
 
-- [ ] 5-1 Write `BootReceiver` for `BOOT_COMPLETED`
-  - Guard: only act if `VaultPrefs.isSetupComplete()` and `VaultPrefs.isLockEnabled()`. Re-apply DO policies, then start service.
-- [ ] 5-2 Add `ACTION_SHOW_NOW` intent action to `LockOverlayService`
-  - Triggers `showOverlay()` immediately on `onStartCommand` for boot scenario.
+- [x] 5-1 Write `BootReceiver` for `BOOT_COMPLETED`
+- [x] 5-2 `ACTION_SHOW_NOW` intent action on `LockOverlayService` triggers `showOverlay()` immediately
 
 ---
 
 ## UI Screens
 
-### PH 06 — Lock Screen
+### PH 06 — Lock Screen ✅
 
 Full-screen Compose UI shown inside the overlay. Looks like a system lock screen.
 
-- [ ] 6-1 Implement `LockScreen` composable — clock, password field
-  - Large light-weight clock + date at top, password field center. True black background. Keyboard auto-shows.
-- [ ] 6-2 Implement wiping state — spinner + neutral message ("Decrypting device…")
-  - While `isWiping == true`, show spinner instead of password field. Looks like a slow unlock.
-- [ ] 6-3 Wire state via `StateFlow` from `LockOverlayService` companion
+- [x] 6-1 Implement `LockScreen` composable — clock, date, password field, lockout countdown
+- [x] 6-2 Implement wiping state — spinner + "Decrypting device…" neutral message
+- [x] 6-3 State wired via `MutableStateFlow<LockUiState>` in `LockOverlayService`
 
 ---
 
-### PH 07 — Setup Screen
+### PH 07 — Setup Screen ✅
 
 First-run flow: confirm Device Owner → set real password → set duress password → done.
 
-- [ ] 7-1 Show Device Owner status card with ADB command + copy button + "Check status" button
-  - "Continue" button only enabled when DO is confirmed active.
-- [ ] 7-2 Navigate to password setup (real) → password setup (duress) → mark setup complete → home
+- [x] 7-1 Show Device Owner status card with ADB command + "Check status" button
+- [x] 7-2 Navigate: setup → real password → duress password → mark setup complete → home
 
 ---
 
-### PH 08 — Password Setup Screen
+### PH 08 — Password Setup Screen ✅
 
 Two-step entry + confirmation. Reused for both real and duress password.
 
-- [ ] 8-1 Write `PasswordSetupViewModel` — two-step enter + confirm flow
-  - Step 0: enter password → store as `firstEntry`. Step 1: enter again → mismatch resets with error, match saves.
-- [ ] 8-2 Write `PasswordSetupScreen` composable using the shared `PasswordField`
+- [x] 8-1 Write `PasswordSetupViewModel` — two-step enter + confirm flow, min 6 chars
+- [x] 8-2 Write `PasswordSetupScreen` composable using the shared `PasswordField`
 
 ---
 
-### PH 09 — Home Screen
+### PH 09 — Home Screen ✅
 
 Main control panel after setup. Enable/disable lock, manage targets, deactivate.
 
-- [ ] 9-1 Status row — Device Owner active/inactive, lock enabled/disabled
-- [ ] 9-2 Enable/Disable lock toggle — starts/stops `LockOverlayService`
-- [ ] 9-3 Targets summary card — "N apps, M files selected" → taps navigate to TargetsScreen
-- [ ] 9-4 "Change password" and "Change Duress password" buttons → navigate to PasswordSetupScreen
-- [ ] 9-5 "Deactivate Vault" — confirmation dialog → `DeviceOwnerManager.clearDeviceOwner()`
+- [x] 9-1 Status row — Device Owner active/inactive, lock enabled/disabled
+- [x] 9-2 Enable/Disable lock toggle — starts/stops `LockOverlayService`
+- [x] 9-3 Targets summary card → navigates to TargetsScreen
+- [x] 9-4 "Change password" / "Change Duress password" → PasswordSetupScreen
+- [x] 9-5 "Deactivate Vault" — confirmation dialog → `DeviceOwnerManager.clearDeviceOwner()`
 
 ---
 
-### PH 10 — Targets Screen
+### PH 10 — Targets Screen ✅
 
 App selection (checkbox list) and file selection (path-based picker).
 
-- [ ] 10-1 Tab layout — Apps | Files
-- [ ] 10-2 Apps tab — load installed user apps via `PackageManager`, show with icon + name + checkbox
-  - Coroutine on IO dispatcher. Filter system apps. Sort alphabetically. Persist on each toggle.
-- [ ] 10-3 Files tab — `OpenDocumentTree` picker + list of selected paths with remove button
+- [x] 10-1 Tab layout — Apps | Files
+- [x] 10-2 Apps tab — user apps via PackageManager, checkbox list, persisted on toggle
+- [x] 10-3 Files tab — `OpenDocumentTree` picker + remove button per path
 
 ---
 
-### PH 11 — Navigation & Entry Point
+### PH 11 — Navigation & Entry Point ✅
 
 Single-activity Compose navigation. Start destination determined by setup state.
 
-- [ ] 11-1 Write `AppNavigation.kt` — `NavHost` with routes: setup, passwordSetup/{mode}, home, targets
-  - Start destination: `setup` if `!VaultPrefs.isSetupComplete()`, otherwise `home`.
-- [ ] 11-2 Write `MainActivity` — single `ComponentActivity` hosting `VaultTheme { AppNavigation() }`
+- [x] 11-1 Write `AppNavigation.kt` — `NavHost` with routes: setup, password/{mode}, home, targets, change/{mode}
+- [x] 11-2 `MainActivity` hosts `VaultTheme { AppNavigation() }`, restarts service on resume
 
 ---
 
 ## Manifest & Hardening
 
-### PH 12 — AndroidManifest & Permissions
+### PH 12 — AndroidManifest & Permissions ✅
 
-- [ ] 12-1 Permissions: `SYSTEM_ALERT_WINDOW`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `MANAGE_EXTERNAL_STORAGE`, `QUERY_ALL_PACKAGES`, `VIBRATE`
-- [ ] 12-2 Declare `LockOverlayService` with `foregroundServiceType="specialUse"` and `directBootAware="true"`
-- [ ] 12-3 Declare `SilentWipeService` with `foregroundServiceType="dataSync"`
-- [ ] 12-4 Declare `BootReceiver` with `BOOT_COMPLETED` intent filter
-- [ ] 12-5 Declare `DeviceOwnerReceiver` with `BIND_DEVICE_ADMIN` permission + meta-data ✅ (done in PH 00b)
+- [x] 12-1 All permissions declared
+- [x] 12-2 `LockOverlayService` with `foregroundServiceType="specialUse"` + `directBootAware="true"`
+- [x] 12-3 `SilentWipeService` with `foregroundServiceType="dataSync"`
+- [x] 12-4 `BootReceiver` with `BOOT_COMPLETED` + `directBootAware="true"`
+- [x] 12-5 `DeviceOwnerReceiver` with `BIND_DEVICE_ADMIN` + meta-data
 
 ---
 
