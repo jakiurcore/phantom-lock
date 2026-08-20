@@ -24,6 +24,10 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.nprime.vault.admin.DeviceOwnerManager
 import com.nprime.vault.data.VaultPrefs
 import com.nprime.vault.ui.lock.LockScreen
@@ -39,12 +43,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner {
+class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
 
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val _vmStore = ViewModelStore()
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val viewModelStore: ViewModelStore get() = _vmStore
+    override val savedStateRegistry: SavedStateRegistry
+        get() = savedStateRegistryController.savedStateRegistry
 
     private val _uiState = MutableStateFlow(LockUiState())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -71,6 +79,7 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createNotificationChannel()
@@ -130,6 +139,7 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner {
         val view = ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@LockOverlayService)
             setViewTreeViewModelStoreOwner(this@LockOverlayService)
+            setViewTreeSavedStateRegistryOwner(this@LockOverlayService)
             setContent {
                 VaultTheme {
                     val state by _uiState.collectAsState()
