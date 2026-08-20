@@ -29,9 +29,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import com.nprime.vault.ui.theme.Accent
 import com.nprime.vault.ui.theme.ErrorRed
 import com.nprime.vault.ui.theme.Gray400
 import com.nprime.vault.ui.theme.Gray700
+import com.nprime.vault.ui.theme.TextSecondary
 import com.nprime.vault.ui.theme.White
 import kotlinx.coroutines.launch
 
@@ -98,11 +100,13 @@ fun PasswordField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor      = White,
             unfocusedTextColor    = White,
-            focusedBorderColor    = White,
+            focusedBorderColor    = Accent,
             unfocusedBorderColor  = Gray700,
             errorBorderColor      = ErrorRed,
-            cursorColor           = White,
-            errorCursorColor      = ErrorRed
+            cursorColor           = Accent,
+            errorCursorColor      = ErrorRed,
+            focusedLabelColor     = Accent,
+            unfocusedLabelColor   = TextSecondary
         ),
         modifier = modifier
             .fillMaxWidth()

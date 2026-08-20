@@ -1,35 +1,37 @@
 package com.nprime.vault.ui.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.nprime.vault.ui.theme.ErrorRed
-import com.nprime.vault.ui.theme.SuccessGreen
+import com.nprime.vault.ui.components.ChevronTrailing
+import com.nprime.vault.ui.components.SectionHeader
+import com.nprime.vault.ui.components.SettingsRow
+import com.nprime.vault.ui.components.ToggleRow
+import com.nprime.vault.ui.theme.Danger
+import com.nprime.vault.ui.theme.Divider
+import com.nprime.vault.ui.theme.Success
+import com.nprime.vault.ui.theme.Surface
+import com.nprime.vault.ui.theme.TextSecondary
 
 @Composable
 fun HomeScreen(
@@ -39,117 +41,185 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val state by vm.uiState.collectAsState()
-
     LaunchedEffect(Unit) { vm.refresh(context) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(top = 56.dp, bottom = 40.dp)
     ) {
-        Text("System Settings", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+        // Title
+        Text(
+            text = "System Settings",
+            style = MaterialTheme.typography.headlineLarge,
+            color = Color.White,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(28.dp))
 
-        // Status card
+        // ── SECURITY ─────────────────────────────────────────────────────────
+        SectionHeader("Security")
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF1A1A1A), MaterialTheme.shapes.medium)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Surface)
         ) {
-            StatusRow("Device Owner", state.isDeviceOwner)
-            StatusRow("Lock Active", state.isLockEnabled)
+            SettingsRow(
+                title = "Device Owner",
+                trailing = {
+                    Text(
+                        if (state.isDeviceOwner) "Active" else "Inactive",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (state.isDeviceOwner) Success else Danger
+                    )
+                },
+                showDivider = true
+            )
+            SettingsRow(
+                title = "Lock Screen",
+                trailing = {
+                    Text(
+                        if (state.isLockEnabled) "On" else "Off",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (state.isLockEnabled) Success else TextSecondary
+                    )
+                },
+                showDivider = false
+            )
         }
 
-        // Lock toggle
-        Row(
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // ── LOCK ─────────────────────────────────────────────────────────────
+        SectionHeader("Lock")
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF1A1A1A), MaterialTheme.shapes.medium)
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Surface)
         ) {
-            Text("Enable Lock", color = Color.White, style = MaterialTheme.typography.bodyLarge)
-            Switch(
+            ToggleRow(
+                title = "Enable Lock Screen",
                 checked = state.isLockEnabled,
-                onCheckedChange = { vm.setLockEnabled(context, it) },
                 enabled = state.isDeviceOwner,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.Black,
-                    checkedTrackColor = Color.White
-                )
+                showDivider = false,
+                onCheckedChange = { vm.setLockEnabled(context, it) }
             )
         }
 
-        // ADB block toggle — warning: disables ADB on device
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF1A1A1A), MaterialTheme.shapes.medium)
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Block ADB / Debug", color = Color.White, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    "Warning: disables adb on this device",
-                    color = Color(0xFF888888),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Switch(
-                checked = state.isAdbBlocked,
-                onCheckedChange = { vm.setAdbBlocked(context, it) },
-                enabled = state.isDeviceOwner,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.Black,
-                    checkedTrackColor = ErrorRed
-                )
-            )
-        }
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Targets card
+        // ── PROTECTION ───────────────────────────────────────────────────────
+        SectionHeader("Protection")
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF1A1A1A), MaterialTheme.shapes.medium)
-                .clickable { onNavigateTargets() }
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Surface)
         ) {
-            Text("Duress Targets", color = Color.White, style = MaterialTheme.typography.bodyLarge)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "${state.selectedApps} apps · ${state.selectedFiles} file paths",
-                color = Color(0xFF888888),
-                style = MaterialTheme.typography.bodySmall
+            ToggleRow(
+                title = "Block ADB & Debugging",
+                subtitle = "Warning: disables adb on this device",
+                checked = state.isAdbBlocked,
+                enabled = state.isDeviceOwner,
+                danger = true,
+                showDivider = false,
+                onCheckedChange = { vm.setAdbBlocked(context, it) }
             )
         }
 
-        // Password buttons
-        Button(
-            onClick = { onChangePassword("real") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2C2C2C))
-        ) { Text("Change Password", color = Color.White) }
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = { onChangePassword("duress") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2C2C2C))
-        ) { Text("Change Duress Password", color = Color.White) }
+        // ── DURESS TARGETS ───────────────────────────────────────────────────
+        SectionHeader("Duress Targets")
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Surface)
+        ) {
+            SettingsRow(
+                title = "Apps",
+                trailing = {
+                    Text(
+                        "${state.selectedApps} selected",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                    ChevronTrailing()
+                },
+                onClick = onNavigateTargets,
+                showDivider = true
+            )
+            SettingsRow(
+                title = "Files & Folders",
+                trailing = {
+                    Text(
+                        "${state.selectedFiles} paths",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                    ChevronTrailing()
+                },
+                onClick = onNavigateTargets,
+                showDivider = false
+            )
+        }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Deactivate
-        Button(
-            onClick = { vm.showDeactivateDialog(true) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2C0000))
-        ) { Text("Deactivate Vault", color = ErrorRed) }
+        // ── PASSWORDS ────────────────────────────────────────────────────────
+        SectionHeader("Passwords")
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Surface)
+        ) {
+            SettingsRow(
+                title = "Change Password",
+                trailing = { ChevronTrailing() },
+                onClick = { onChangePassword("real") },
+                showDivider = true
+            )
+            SettingsRow(
+                title = "Change Duress Password",
+                trailing = { ChevronTrailing() },
+                onClick = { onChangePassword("duress") },
+                showDivider = false
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // ── DANGER ZONE ──────────────────────────────────────────────────────
+        SectionHeader("Danger Zone")
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF1A0000))
+        ) {
+            SettingsRow(
+                title = "Deactivate Vault",
+                subtitle = "Removes Device Owner and stops all protection",
+                titleColor = Danger,
+                trailing = { ChevronTrailing() },
+                onClick = { vm.showDeactivateDialog(true) },
+                showDivider = false
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Deactivating allows the app to be uninstalled.",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
     }
 
     if (state.showDeactivateDialog) {
@@ -158,13 +228,13 @@ fun HomeScreen(
             title = { Text("Deactivate Vault?", color = Color.White) },
             text = {
                 Text(
-                    "This will remove Device Owner status and allow the app to be uninstalled. The lock screen will stop working.",
-                    color = Color(0xFF888888)
+                    "This removes Device Owner status and stops lock screen protection. The app can then be uninstalled.",
+                    color = TextSecondary
                 )
             },
             confirmButton = {
                 TextButton(onClick = { vm.deactivate(context) }) {
-                    Text("Deactivate", color = ErrorRed)
+                    Text("Deactivate", color = Danger)
                 }
             },
             dismissButton = {
@@ -172,22 +242,7 @@ fun HomeScreen(
                     Text("Cancel", color = Color.White)
                 }
             },
-            containerColor = Color(0xFF1A1A1A)
-        )
-    }
-}
-
-@Composable
-private fun StatusRow(label: String, active: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, color = Color(0xFF888888), style = MaterialTheme.typography.bodyMedium)
-        Text(
-            if (active) "ACTIVE" else "INACTIVE",
-            color = if (active) SuccessGreen else ErrorRed,
-            style = MaterialTheme.typography.bodyMedium
+            containerColor = Surface
         )
     }
 }

@@ -4,23 +4,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
-private val LockScreenColors = darkColorScheme(
-    primary          = White,
-    onPrimary        = Black,
-    background       = Black,
-    onBackground     = White,
-    surface          = Gray800,
-    onSurface        = White,
-    surfaceVariant   = Gray700,
-    onSurfaceVariant = Gray400,
-    error            = ErrorRed,
-    onError          = White
+private val VaultColors = darkColorScheme(
+    primary            = Accent,
+    onPrimary          = White,
+    background         = Black,
+    onBackground       = White,
+    surface            = Surface,
+    onSurface          = White,
+    surfaceVariant     = SurfaceHigh,
+    onSurfaceVariant   = TextSecondary,
+    error              = Danger,
+    onError            = White,
+    outline            = Divider,
+    outlineVariant     = Gray700
 )
 
 @Composable
 fun VaultTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = LockScreenColors,
+        colorScheme = VaultColors,
         typography  = VaultTypography,
         content     = content
     )
