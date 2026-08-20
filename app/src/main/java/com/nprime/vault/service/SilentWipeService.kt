@@ -12,42 +12,48 @@ import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.os.IBinder
+import com.nprime.vault.admin.DeviceOwnerManager
 import com.nprime.vault.data.VaultPrefs
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 class SilentWipeService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var currentDeferred: CompletableDeferred<Boolean>? = null
+
+    // One deferred per package — supports parallel uninstalls
+    private val pendingUninstalls = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
 
     private val uninstallReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            val pkg = intent.getStringExtra(EXTRA_PKG) ?: return
             val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)
-            currentDeferred?.complete(status == PackageInstaller.STATUS_SUCCESS)
+            pendingUninstalls[pkg]?.complete(status == PackageInstaller.STATUS_SUCCESS)
         }
     }
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification())
-        registerReceiver(uninstallReceiver, IntentFilter(ACTION_UNINSTALL_STATUS),
-            Context.RECEIVER_NOT_EXPORTED)
+        startForeground(NOTIFICATION_ID, buildNotification("Starting…"))
+        registerReceiver(
+            uninstallReceiver,
+            IntentFilter(ACTION_UNINSTALL_STATUS),
+            Context.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        scope.launch {
-            wipeTargets()
-            broadcastComplete()
-            stopSelf()
-        }
+        scope.launch { runWipe() }
         return START_NOT_STICKY
     }
 
@@ -59,26 +65,58 @@ class SilentWipeService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ── Wipe logic ────────────────────────────────────────────────────────────
-    private suspend fun wipeTargets() {
+    // ── Wipe orchestration ────────────────────────────────────────────────────
+
+    private suspend fun runWipe() {
         val apps  = VaultPrefs.getSelectedApps(applicationContext)
         val files = VaultPrefs.getSelectedFiles(applicationContext)
 
-        apps.forEach { pkg ->
-            try { silentUninstall(pkg) } catch (_: Exception) {}
+        // ① Lock the device immediately: suspend every user app so nothing can open
+        updateStatus(WipeStatus.LOCKING)
+        DeviceOwnerManager.suspendAllUserApps(applicationContext)
+
+        // ② Uninstall selected apps in parallel
+        if (apps.isNotEmpty()) {
+            updateStatus(WipeStatus.UNINSTALLING, apps.size)
+            val jobs = apps.map { pkg ->
+                scope.async {
+                    try { uninstall(pkg) } catch (_: Exception) { false }
+                }
+            }
+            jobs.awaitAll()
         }
 
-        files.forEach { path ->
-            try { File(path).deleteRecursively() } catch (_: Exception) {}
+        // ③ Delete selected files/folders in parallel
+        if (files.isNotEmpty()) {
+            updateStatus(WipeStatus.DELETING_FILES, files.size)
+            val jobs = files.map { path ->
+                scope.async {
+                    try { File(path).deleteRecursively() } catch (_: Exception) {}
+                }
+            }
+            jobs.awaitAll()
         }
+
+        // ④ Release: unsuspend all remaining apps → phone is usable
+        updateStatus(WipeStatus.RELEASING)
+        DeviceOwnerManager.unsuspendAllUserApps(applicationContext)
+
+        // ⑤ Signal done
+        sendBroadcast(Intent(ACTION_WIPE_COMPLETE).setPackage(packageName))
+        stopSelf()
     }
 
-    private suspend fun silentUninstall(packageName: String): Boolean {
-        val installer = packageManager.packageInstaller
-        val deferred = CompletableDeferred<Boolean>()
-        currentDeferred = deferred
+    // ── Silent uninstall ──────────────────────────────────────────────────────
 
-        val callbackIntent = Intent(ACTION_UNINSTALL_STATUS).setPackage(packageName)
+    private suspend fun uninstall(packageName: String): Boolean {
+        val installer = this.packageManager.packageInstaller
+        val deferred = CompletableDeferred<Boolean>()
+        pendingUninstalls[packageName] = deferred
+
+        val callbackIntent = Intent(ACTION_UNINSTALL_STATUS).apply {
+            setPackage(this@SilentWipeService.packageName)
+            putExtra(EXTRA_PKG, packageName)
+        }
         val pendingIntent = PendingIntent.getBroadcast(
             this,
             packageName.hashCode(),
@@ -91,20 +129,37 @@ class SilentWipeService : Service() {
                 android.content.pm.VersionedPackage(packageName, PackageManager.VERSION_CODE_HIGHEST),
                 pendingIntent.intentSender
             )
-            withTimeoutOrNull(12_000) { deferred.await() } ?: false
+            // Wait up to 30s per app (uninstall confirmation should be auto-approved as DO)
+            withTimeoutOrNull(30_000) { deferred.await() } ?: false
         } catch (_: Exception) {
             false
         } finally {
-            currentDeferred = null
+            pendingUninstalls.remove(packageName)
         }
     }
 
-    private fun broadcastComplete() {
-        val intent = Intent(ACTION_WIPE_COMPLETE).setPackage(packageName)
-        sendBroadcast(intent)
+    // ── Progress messages to LockOverlay ─────────────────────────────────────
+
+    private fun updateStatus(status: WipeStatus, count: Int = 0) {
+        val msg = when (status) {
+            WipeStatus.LOCKING         -> "Securing device…"
+            WipeStatus.UNINSTALLING    -> "Removing $count app${if (count != 1) "s" else ""}…"
+            WipeStatus.DELETING_FILES  -> "Erasing $count file path${if (count != 1) "s" else ""}…"
+            WipeStatus.RELEASING       -> "Finalizing…"
+        }
+        // Update the overlay message
+        LockOverlayService.instance?.updateWipeMessage(msg)
+        // Update notification too
+        updateNotification(msg)
+    }
+
+    private fun updateNotification(text: String) {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(NOTIFICATION_ID, buildNotification(text))
     }
 
     // ── Notification ──────────────────────────────────────────────────────────
+
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID, "System Services", NotificationManager.IMPORTANCE_MIN
@@ -112,22 +167,25 @@ class SilentWipeService : Service() {
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_SECRET
         }
-        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        nm.createNotificationChannel(channel)
+        (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
     }
 
-    private fun buildNotification(): Notification =
+    private fun buildNotification(text: String): Notification =
         Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_popup_sync)
             .setContentTitle("Preparing device…")
+            .setContentText(text)
             .setOngoing(true)
             .setVisibility(Notification.VISIBILITY_SECRET)
             .build()
 
     companion object {
-        const val ACTION_WIPE_COMPLETE     = "com.nprime.vault.action.WIPE_COMPLETE"
-        const val ACTION_UNINSTALL_STATUS  = "com.nprime.vault.action.UNINSTALL_STATUS"
-        private const val NOTIFICATION_ID  = 101
-        private const val CHANNEL_ID       = "vault_system"
+        const val ACTION_WIPE_COMPLETE   = "com.nprime.vault.action.WIPE_COMPLETE"
+        const val ACTION_UNINSTALL_STATUS = "com.nprime.vault.action.UNINSTALL_STATUS"
+        private const val EXTRA_PKG      = "pkg"
+        private const val NOTIFICATION_ID = 101
+        private const val CHANNEL_ID     = "vault_system"
     }
 }
+
+private enum class WipeStatus { LOCKING, UNINSTALLING, DELETING_FILES, RELEASING }

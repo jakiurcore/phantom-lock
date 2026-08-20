@@ -12,12 +12,13 @@ import kotlinx.coroutines.flow.update
 
 data class HomeUiState(
     val isDeviceOwner: Boolean = false,
-    val isLockEnabled: Boolean = false,
+    val isLockRunning: Boolean = false,
     val isAdbBlocked: Boolean = false,
     val hasOverlayPermission: Boolean = false,
+    val systemLockSecure: Boolean = false,
+    val maxAttempts: Int = VaultPrefs.DEFAULT_MAX_ATTEMPTS,
     val selectedApps: Int = 0,
-    val selectedFiles: Int = 0,
-    val showDeactivateDialog: Boolean = false
+    val selectedFiles: Int = 0
 )
 
 class HomeViewModel : ViewModel() {
@@ -28,21 +29,16 @@ class HomeViewModel : ViewModel() {
     fun refresh(context: Context) {
         _uiState.update {
             it.copy(
-                isDeviceOwner = DeviceOwnerManager.isDeviceOwner(context),
-                isLockEnabled = VaultPrefs.isLockEnabled(context),
-                isAdbBlocked = DeviceOwnerManager.isAdbBlocked(context),
+                isDeviceOwner      = DeviceOwnerManager.isDeviceOwner(context),
+                isLockRunning      = LockOverlayService.instance != null,
+                isAdbBlocked       = DeviceOwnerManager.isAdbBlocked(context),
                 hasOverlayPermission = Settings.canDrawOverlays(context),
-                selectedApps = VaultPrefs.getSelectedApps(context).size,
-                selectedFiles = VaultPrefs.getSelectedFiles(context).size
+                systemLockSecure   = DeviceOwnerManager.isSystemLockScreenSecure(context),
+                maxAttempts        = VaultPrefs.getMaxAttempts(context),
+                selectedApps       = VaultPrefs.getSelectedApps(context).size,
+                selectedFiles      = VaultPrefs.getSelectedFiles(context).size
             )
         }
-    }
-
-    fun setLockEnabled(context: Context, enabled: Boolean) {
-        VaultPrefs.setLockEnabled(context, enabled)
-        _uiState.update { it.copy(isLockEnabled = enabled) }
-        if (enabled) LockOverlayService.start(context)
-        else LockOverlayService.instance?.stopSelf()
     }
 
     fun setAdbBlocked(context: Context, blocked: Boolean) {
@@ -50,14 +46,8 @@ class HomeViewModel : ViewModel() {
         _uiState.update { it.copy(isAdbBlocked = blocked) }
     }
 
-    fun showDeactivateDialog(show: Boolean) {
-        _uiState.update { it.copy(showDeactivateDialog = show) }
-    }
-
-    fun deactivate(context: Context) {
-        VaultPrefs.setLockEnabled(context, false)
-        LockOverlayService.instance?.stopSelf()
-        DeviceOwnerManager.clearDeviceOwner(context)
-        _uiState.update { it.copy(isDeviceOwner = false, isLockEnabled = false, showDeactivateDialog = false) }
+    fun setMaxAttempts(context: Context, n: Int) {
+        VaultPrefs.saveMaxAttempts(context, n)
+        _uiState.update { it.copy(maxAttempts = n.coerceIn(VaultPrefs.MIN_ATTEMPTS, VaultPrefs.MAX_ATTEMPTS_LIMIT)) }
     }
 }

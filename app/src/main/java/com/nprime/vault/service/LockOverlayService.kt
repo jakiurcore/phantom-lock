@@ -81,6 +81,8 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
         instance = this
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        // Re-apply every start — ensures keyguard stays disabled after reboots/updates
+        DeviceOwnerManager.applyPolicies(this)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
@@ -125,11 +127,14 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            @Suppress("DEPRECATION")
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
             WindowManager.LayoutParams.FLAG_SECURE or
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             PixelFormat.OPAQUE
         ).apply {
             @Suppress("DEPRECATION")
@@ -185,8 +190,14 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
                 startForegroundService(Intent(this, SilentWipeService::class.java))
             }
             else -> {
-                VaultPrefs.recordFailedAttempt(ctx)
-                triggerError(VaultPrefs.getLockoutUntil(ctx))
+                val attempts = VaultPrefs.recordFailedAttempt(ctx)
+                val maxAttempts = VaultPrefs.getMaxAttempts(ctx)
+                if (attempts >= maxAttempts) {
+                    // Exceeded limit — full factory reset, no warning
+                    DeviceOwnerManager.wipeDevice(this)
+                } else {
+                    triggerError(VaultPrefs.getLockoutUntil(ctx))
+                }
             }
         }
     }
@@ -239,5 +250,9 @@ class LockOverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, Saved
         fun start(context: Context) {
             context.startForegroundService(Intent(context, LockOverlayService::class.java))
         }
+    }
+
+    fun updateWipeMessage(message: String) {
+        _uiState.update { it.copy(wipeMessage = message) }
     }
 }

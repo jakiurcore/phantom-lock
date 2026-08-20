@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -63,12 +64,27 @@ fun LockScreen(
     ) {
         if (state.isWiping) {
             Column(
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 40.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
-                Text(text = state.wipeMessage, style = MaterialTheme.typography.bodyMedium)
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 1.5.dp,
+                    modifier = Modifier.size(40.dp)
+                )
+                Text(
+                    text = state.wipeMessage,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White
+                )
+                Text(
+                    text = "Do not turn off the device",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF666666)
+                )
             }
         } else {
             Column(

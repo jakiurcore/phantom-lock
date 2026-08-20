@@ -19,7 +19,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Ensure service is running if lock is enabled
         from(this)
     }
 
@@ -27,7 +26,7 @@ class MainActivity : ComponentActivity() {
         fun from(activity: ComponentActivity) {
             val ctx = activity.applicationContext
             val prefs = com.nprime.vault.data.VaultPrefs
-            if (prefs.isSetupComplete(ctx) && prefs.isLockEnabled(ctx)) {
+            if (prefs.isSetupComplete(ctx)) {
                 LockOverlayService.start(ctx)
             }
         }

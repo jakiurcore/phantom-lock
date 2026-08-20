@@ -1,9 +1,7 @@
 package com.nprime.vault.ui.home
 
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,13 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,13 +32,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nprime.vault.data.VaultPrefs
 import com.nprime.vault.ui.components.ChevronTrailing
 import com.nprime.vault.ui.components.SectionHeader
 import com.nprime.vault.ui.components.SettingsRow
 import com.nprime.vault.ui.components.ToggleRow
 import com.nprime.vault.ui.theme.Accent
 import com.nprime.vault.ui.theme.Danger
-import com.nprime.vault.ui.theme.Divider
 import com.nprime.vault.ui.theme.Success
 import com.nprime.vault.ui.theme.Surface
 import com.nprime.vault.ui.theme.TextSecondary
@@ -48,11 +48,14 @@ import com.nprime.vault.ui.theme.Warning
 fun HomeScreen(
     onNavigateTargets: () -> Unit,
     onChangePassword: (String) -> Unit,
+    onNavigateSetup: () -> Unit,
     vm: HomeViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val state by vm.uiState.collectAsState()
     LaunchedEffect(Unit) { vm.refresh(context) }
+
+    val setupOk = state.isDeviceOwner && !state.systemLockSecure && state.hasOverlayPermission
 
     Column(
         modifier = Modifier
@@ -61,51 +64,45 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState())
             .padding(top = 56.dp, bottom = 40.dp)
     ) {
-        // Title
         Text(
-            text = "System Settings",
+            "System Settings",
             style = MaterialTheme.typography.headlineLarge,
             color = Color.White,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         Spacer(modifier = Modifier.height(28.dp))
 
-        // ── OVERLAY PERMISSION BANNER ─────────────────────────────────────────
-        if (!state.hasOverlayPermission) {
+        // ── Setup incomplete banner ───────────────────────────────────────────
+        if (!setupOk) {
             Row(
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF2C1A00))
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Warning, contentDescription = null, tint = Warning,
-                    modifier = Modifier.padding(end = 12.dp))
+                Icon(
+                    Icons.Default.Warning, null,
+                    tint = Warning, modifier = Modifier.padding(end = 12.dp)
+                )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Permission required", style = MaterialTheme.typography.bodyLarge,
-                        color = Warning)
+                    Text("Setup incomplete", style = MaterialTheme.typography.bodyLarge, color = Warning)
                     Text(
-                        "Tap to grant \"Display over other apps\" — needed for the lock screen overlay.",
+                        buildSetupStatus(state),
                         style = MaterialTheme.typography.bodySmall, color = TextSecondary
                     )
                 }
+                ChevronTrailing()
             }
             TextButton(
-                onClick = {
-                    context.startActivity(
-                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:${context.packageName}"))
-                    )
-                },
+                onClick = onNavigateSetup,
                 modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth()
-            ) {
-                Text("Open Permission Settings", color = Accent)
-            }
+            ) { Text("View Setup Steps", color = Accent) }
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // ── SECURITY ─────────────────────────────────────────────────────────
+        // ── Security ─────────────────────────────────────────────────────────
         SectionHeader("Security")
         Column(
             modifier = Modifier
@@ -125,12 +122,23 @@ fun HomeScreen(
                 showDivider = true
             )
             SettingsRow(
+                title = "System Keyguard",
+                trailing = {
+                    Text(
+                        if (!state.systemLockSecure) "Disabled" else "Active",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (!state.systemLockSecure) Success else Danger
+                    )
+                },
+                showDivider = true
+            )
+            SettingsRow(
                 title = "Lock Screen",
                 trailing = {
                     Text(
-                        if (state.isLockEnabled) "On" else "Off",
+                        if (state.isLockRunning) "Running" else "Stopped",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (state.isLockEnabled) Success else TextSecondary
+                        color = if (state.isLockRunning) Success else Danger
                     )
                 },
                 showDivider = false
@@ -139,26 +147,7 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── LOCK ─────────────────────────────────────────────────────────────
-        SectionHeader("Lock")
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Surface)
-        ) {
-            ToggleRow(
-                title = "Enable Lock Screen",
-                checked = state.isLockEnabled,
-                enabled = state.isDeviceOwner,
-                showDivider = false,
-                onCheckedChange = { vm.setLockEnabled(context, it) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ── PROTECTION ───────────────────────────────────────────────────────
+        // ── Protection ───────────────────────────────────────────────────────
         SectionHeader("Protection")
         Column(
             modifier = Modifier
@@ -179,7 +168,74 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── DURESS TARGETS ───────────────────────────────────────────────────
+        // ── Security Policy ───────────────────────────────────────────────────
+        SectionHeader("Security Policy")
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Surface)
+        ) {
+            SettingsRow(
+                title = "Wipe after failed attempts",
+                subtitle = "Factory reset if this many wrong passwords entered",
+                showDivider = false,
+                trailing = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Minus button
+                        IconButton(
+                            onClick = { vm.setMaxAttempts(context, state.maxAttempts - 1) },
+                            enabled = state.maxAttempts > VaultPrefs.MIN_ATTEMPTS,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(if (state.maxAttempts > VaultPrefs.MIN_ATTEMPTS) Surface else Color(0xFF111111))
+                        ) {
+                            Text(
+                                "−",
+                                color = if (state.maxAttempts > VaultPrefs.MIN_ATTEMPTS) Color.White else TextSecondary,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                        Text(
+                            text = "${state.maxAttempts}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Danger,
+                            modifier = Modifier.padding(horizontal = 6.dp)
+                        )
+                        // Plus button
+                        IconButton(
+                            onClick = { vm.setMaxAttempts(context, state.maxAttempts + 1) },
+                            enabled = state.maxAttempts < VaultPrefs.MAX_ATTEMPTS_LIMIT,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(if (state.maxAttempts < VaultPrefs.MAX_ATTEMPTS_LIMIT) Surface else Color(0xFF111111))
+                        ) {
+                            Text(
+                                "+",
+                                color = if (state.maxAttempts < VaultPrefs.MAX_ATTEMPTS_LIMIT) Color.White else TextSecondary,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+                }
+            )
+        }
+        Text(
+            "Range: ${VaultPrefs.MIN_ATTEMPTS}–${VaultPrefs.MAX_ATTEMPTS_LIMIT}. " +
+            "On the ${state.maxAttempts}th wrong attempt the device factory resets.",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary,
+            modifier = Modifier.padding(horizontal = 28.dp, vertical = 6.dp)
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // ── Duress Targets ───────────────────────────────────────────────────
         SectionHeader("Duress Targets")
         Column(
             modifier = Modifier
@@ -217,7 +273,7 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── PASSWORDS ────────────────────────────────────────────────────────
+        // ── Passwords ────────────────────────────────────────────────────────
         SectionHeader("Passwords")
         Column(
             modifier = Modifier
@@ -238,57 +294,13 @@ fun HomeScreen(
                 showDivider = false
             )
         }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // ── DANGER ZONE ──────────────────────────────────────────────────────
-        SectionHeader("Danger Zone")
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF1A0000))
-        ) {
-            SettingsRow(
-                title = "Deactivate Vault",
-                subtitle = "Removes Device Owner and stops all protection",
-                titleColor = Danger,
-                trailing = { ChevronTrailing() },
-                onClick = { vm.showDeactivateDialog(true) },
-                showDivider = false
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Deactivating allows the app to be uninstalled.",
-            style = MaterialTheme.typography.bodySmall,
-            color = TextSecondary,
-            modifier = Modifier.padding(horizontal = 32.dp)
-        )
     }
+}
 
-    if (state.showDeactivateDialog) {
-        AlertDialog(
-            onDismissRequest = { vm.showDeactivateDialog(false) },
-            title = { Text("Deactivate Vault?", color = Color.White) },
-            text = {
-                Text(
-                    "This removes Device Owner status and stops lock screen protection. The app can then be uninstalled.",
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { vm.deactivate(context) }) {
-                    Text("Deactivate", color = Danger)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { vm.showDeactivateDialog(false) }) {
-                    Text("Cancel", color = Color.White)
-                }
-            },
-            containerColor = Surface
-        )
-    }
+private fun buildSetupStatus(state: HomeUiState): String {
+    val issues = mutableListOf<String>()
+    if (!state.isDeviceOwner)        issues.add("Device Owner not provisioned")
+    if (state.systemLockSecure)      issues.add("System lock screen still active")
+    if (!state.hasOverlayPermission) issues.add("Overlay permission missing")
+    return issues.joinToString(" · ")
 }

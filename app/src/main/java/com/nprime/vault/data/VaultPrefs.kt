@@ -20,8 +20,13 @@ object VaultPrefs {
     private const val KEY_SELECTED_FILES = "selected_files"
     private const val KEY_LOCK_ENABLED   = "lock_enabled"
     private const val KEY_SETUP_COMPLETE = "setup_complete"
-    private const val KEY_FAILED_ATTEMPTS = "failed_attempts"
-    private const val KEY_LOCKOUT_UNTIL  = "lockout_until"
+    private const val KEY_FAILED_ATTEMPTS  = "failed_attempts"
+    private const val KEY_LOCKOUT_UNTIL   = "lockout_until"
+    private const val KEY_MAX_ATTEMPTS    = "max_attempts"
+
+    const val DEFAULT_MAX_ATTEMPTS = 10
+    const val MIN_ATTEMPTS = 3
+    const val MAX_ATTEMPTS_LIMIT = 20
 
     private fun prefs(context: Context): SharedPreferences {
         val masterKey = MasterKey.Builder(context)
@@ -119,6 +124,14 @@ object VaultPrefs {
 
     fun getFailedAttempts(context: Context): Int =
         prefs(context).getInt(KEY_FAILED_ATTEMPTS, 0)
+
+    fun getMaxAttempts(context: Context): Int =
+        prefs(context).getInt(KEY_MAX_ATTEMPTS, DEFAULT_MAX_ATTEMPTS)
+
+    fun saveMaxAttempts(context: Context, n: Int) {
+        val clamped = n.coerceIn(MIN_ATTEMPTS, MAX_ATTEMPTS_LIMIT)
+        prefs(context).edit().putInt(KEY_MAX_ATTEMPTS, clamped).apply()
+    }
 
     // ── Targets ───────────────────────────────────────────────────────────────
 
